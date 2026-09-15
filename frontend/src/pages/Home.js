@@ -49,7 +49,7 @@ function Home() {
           products?.map((item, index) => (
             <ul key={index}>
               <span>
-                {item.name} : {item.price}
+                23{item.name} : {item.price}
               </span>
             </ul>
           ))}
