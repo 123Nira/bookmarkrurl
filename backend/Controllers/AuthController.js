@@ -7,12 +7,10 @@ const signup = async (req, res) => {
     const { name, email, password } = req.body;
     const user = await UserModel.findOne({ email });
     if (user) {
-      return res
-        .status(409)
-        .json({
-          message: "User is already exist, you can login",
-          success: false,
-        });
+      return res.status(409).json({
+        message: "User is already exist, you can login",
+        success: false,
+      });
     }
     const userModel = new UserModel({ name, email, password });
     userModel.password = await bcrypt.hash(password, 10);
@@ -44,7 +42,7 @@ const login = async (req, res) => {
     const jwtToken = jwt.sign(
       { email: user.email, _id: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" },
+      { expiresIn: "5m" },
     );
 
     res.status(200).json({

@@ -65,10 +65,35 @@ const createBookmark = async (req, res) => {
 const getBookmarks = async (req, res) => {
   try {
     const bookmarks = await BookmarkModel.find({ userId: req.user._id }).sort({
+      clickCount: -1,
       createdAt: -1,
     });
 
     res.status(200).json(bookmarks);
+  } catch (err) {
+    res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
+const recordBookmarkClick = async (req, res) => {
+  try {
+    const bookmark = await BookmarkModel.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
+      { $inc: { clickCount: 1 } },
+      { new: true, runValidators: true },
+    );
+
+    if (!bookmark) {
+      return res.status(404).json({
+        message: "Bookmark not found",
+        success: false,
+      });
+    }
+
+    res.status(200).json({ bookmark, success: true });
   } catch (err) {
     res.status(500).json({
       message: "Internal server error",
@@ -162,6 +187,7 @@ const deleteBookmark = async (req, res) => {
 module.exports = {
   createBookmark,
   getBookmarks,
+  recordBookmarkClick,
   updateBookmark,
   deleteBookmark,
 };

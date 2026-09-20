@@ -12,6 +12,11 @@ const BookmarkSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    clickCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     loginId: {
       type: String,
       trim: true,

@@ -4,7 +4,7 @@ import { handleError, handleSuccess } from "../utils";
 import { ToastContainer } from "react-toastify";
 
 const emptyForm = { siteName: "", siteUrl: "", loginId: "", password: "" };
-const pageSize = 8;
+const pageSize = 10;
 const normalizeUrl = (url) => url.toLowerCase().replace(/\/+$/, "");
 
 const request = async (path, options = {}) => {
@@ -17,12 +17,18 @@ const request = async (path, options = {}) => {
     },
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.message || "Request failed");
+  if (!response.ok) {
+    const error = new Error(result.message || "Request failed");
+    error.status = response.status;
+    throw error;
+  }
   return result;
 };
 
 function Home({ theme, toggleTheme }) {
-  const [loggedInUser, setLoggedInUser] = useState("");
+  const [loggedInUser] = useState(
+    () => localStorage.getItem("loggedInUser") || "there",
+  );
   const [bookmarks, setBookmarks] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
@@ -33,13 +39,23 @@ function Home({ theme, toggleTheme }) {
   const [page, setPage] = useState(1);
   const navigate = useNavigate();
 
-  useEffect(() => setLoggedInUser(localStorage.getItem("loggedInUser")), []);
+  const handleRequestError = (err) => {
+    if (err.status === 403) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("loggedInUser");
+      handleError("Your session has expired. Please log in again.");
+      setTimeout(() => navigate("/login", { replace: true }), 1500);
+      return;
+    }
+
+    handleError(err.message);
+  };
 
   const fetchBookmarks = async () => {
     try {
       setBookmarks(await request("/bookmarks"));
     } catch (err) {
-      handleError(err.message);
+      handleRequestError(err);
     }
   };
 
@@ -123,7 +139,7 @@ function Home({ theme, toggleTheme }) {
       await fetchBookmarks();
       handleSuccess(wasEditing ? "Bookmark updated" : "Bookmark saved");
     } catch (err) {
-      handleError(err.message);
+      handleRequestError(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -149,282 +165,323 @@ function Home({ theme, toggleTheme }) {
       );
       handleSuccess("Bookmark deleted");
     } catch (err) {
-      handleError(err.message);
+      handleRequestError(err);
     }
+  };
+
+  const handleBookmarkClick = (bookmark) => {
+    request(`/bookmarks/${bookmark._id}/click`, { method: "POST" })
+      .then(({ bookmark: updatedBookmark }) => {
+        setBookmarks((current) =>
+          [
+            ...current.map((item) =>
+              item._id === updatedBookmark._id ? updatedBookmark : item,
+            ),
+          ].sort(
+            (first, second) =>
+              (second.clickCount || 0) - (first.clickCount || 0) ||
+              new Date(second.createdAt) - new Date(first.createdAt),
+          ),
+        );
+      })
+      .catch(handleRequestError);
   };
 
   return (
     <main className="dashboard-page">
-      <header className="topbar">
-        <div className="auth-brand">
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-brand auth-brand">
           bookmark<span>r</span>
         </div>
-        <div className="topbar-actions">
-          <button
-            className="icon-button"
-            type="button"
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-          >
-            {theme === "light" ? "☾" : "☀"}
+        <nav className="sidebar-nav" aria-label="Main navigation">
+          <span className="nav-label">Workspace</span>
+          <a className="nav-item active" href="#bookmarks">
+            <span>▦</span> All bookmarks
+          </a>
+          <a className="nav-item" href="#bookmarks">
+            <span>↗</span> Most visited
+          </a>
+          <span className="nav-label nav-label-spaced">Account</span>
+          <button className="nav-item" type="button" onClick={toggleTheme}>
+            <span>{theme === "light" ? "☾" : "☀"}</span>{" "}
+            {theme === "light" ? "Dark mode" : "Light mode"}
           </button>
-          <button className="logout-button" onClick={handleLogout}>
-            Log out <span>↗</span>
-          </button>
-        </div>
-      </header>
-      <section className="dashboard-content">
-        <div className="dashboard-heading">
-          <div>
-            <p className="eyebrow">Your private vault</p>
-            <h1>Good to see you, {loggedInUser || "there"}.</h1>
-            <p className="intro-copy">
-              Keep the places and credentials you return to close at hand.
-            </p>
+        </nav>
+        <button className="sidebar-logout" type="button" onClick={handleLogout}>
+          Log out <span>↗</span>
+        </button>
+      </aside>
+      <div className="dashboard-main">
+        <header className="topbar">
+          <div className="mobile-brand auth-brand">
+            bookmark<span>r</span>
           </div>
-          <div className="library-count">
-            <strong>{String(bookmarks.length).padStart(2, "0")}</strong>
-            <span>saved items</span>
+          <div className="topbar-context">
+            <span className="topbar-greeting">
+              Good to see you, {loggedInUser}.
+            </span>
+            <span className="topbar-workspace">
+              <span className="topbar-dot" /> Personal workspace
+            </span>
           </div>
-        </div>
-        <div className="toolbar">
-          <label className="search-box">
-            <span>Search</span>
-            <input
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Search by site name"
-            />
-          </label>
-          <button
-            className="primary-button new-entry-button"
-            type="button"
-            onClick={() => {
-              setEditingId(null);
-              setForm(emptyForm);
-              setIsFormOpen(true);
-            }}
-          >
-            <span>+ New entry</span>
-          </button>
-        </div>
-        {isFormOpen && (
-          <div
-            className="bookmark-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="bookmark-form-title"
-          >
+          <div className="topbar-actions">
             <button
-              className="modal-backdrop"
+              className="icon-button"
               type="button"
-              aria-label="Close bookmark form"
-              onClick={resetForm}
-            />
-            <form
-              className="bookmark-form"
-              onSubmit={handleSubmit}
-              autoComplete="off"
+              onClick={toggleTheme}
+              aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
             >
-              <div className="form-heading">
-                <div>
-                  <p className="eyebrow">
-                    {editingId ? "Edit entry" : "New entry"}
-                  </p>
-                  <h2 id="bookmark-form-title">
-                    {editingId ? "Update bookmark" : "Save a bookmark"}
-                  </h2>
+              {theme === "light" ? "☾" : "☀"}
+            </button>
+            <button className="logout-button" onClick={handleLogout}>
+              Log out <span>↗</span>
+            </button>
+          </div>
+        </header>
+        <section className="dashboard-content" id="bookmarks">
+          <div className="toolbar">
+            <label className="search-box">
+              <span>Search</span>
+              <input
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search by site name"
+              />
+            </label>
+            <button
+              className="primary-button new-entry-button"
+              type="button"
+              onClick={() => {
+                setEditingId(null);
+                setForm(emptyForm);
+                setIsFormOpen(true);
+              }}
+            >
+              <span>+ New entry</span>
+            </button>
+            <span>{filteredBookmarks.length} Total Sites</span>
+          </div>
+          {isFormOpen && (
+            <div
+              className="bookmark-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="bookmark-form-title"
+            >
+              <button
+                className="modal-backdrop"
+                type="button"
+                aria-label="Close bookmark form"
+                onClick={resetForm}
+              />
+              <form
+                className="bookmark-form"
+                onSubmit={handleSubmit}
+                autoComplete="off"
+              >
+                <div className="form-heading">
+                  <div>
+                    <p className="eyebrow">
+                      {editingId ? "Edit entry" : "New entry"}
+                    </p>
+                    <h2 id="bookmark-form-title">
+                      {editingId ? "Update bookmark" : "Save a bookmark"}
+                    </h2>
+                  </div>
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={resetForm}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div className="bookmark-fields">
+                  <label>
+                    Site name
+                    <input
+                      name="siteName"
+                      value={form.siteName}
+                      onChange={handleChange}
+                      placeholder="e.g. GitHub"
+                      autoComplete="organization"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Site URL
+                    <input
+                      name="siteUrl"
+                      type="url"
+                      value={form.siteUrl}
+                      onChange={handleChange}
+                      placeholder="https://example.com"
+                      autoComplete="url"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Login ID
+                    <input
+                      name="loginId"
+                      value={form.loginId}
+                      onChange={handleChange}
+                      placeholder="Optional"
+                      autoComplete="username"
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      name="password"
+                      type="password"
+                      value={form.password}
+                      onChange={handleChange}
+                      placeholder="Optional"
+                      autoComplete={
+                        editingId ? "current-password" : "new-password"
+                      }
+                    />
+                  </label>
                 </div>
                 <button
-                  className="text-button"
-                  type="button"
-                  onClick={resetForm}
+                  className="primary-button bookmark-submit"
+                  type="submit"
+                  disabled={isSubmitting}
                 >
-                  Cancel
+                  <span>
+                    {isSubmitting
+                      ? "Saving..."
+                      : editingId
+                        ? "Update bookmark"
+                        : "Save bookmark"}
+                  </span>
+                  <span>↗</span>
                 </button>
-              </div>
-              <div className="bookmark-fields">
-                <label>
-                  Site name
-                  <input
-                    name="siteName"
-                    value={form.siteName}
-                    onChange={handleChange}
-                    placeholder="e.g. GitHub"
-                    autoComplete="organization"
-                    required
-                  />
-                </label>
-                <label>
-                  Site URL
-                  <input
-                    name="siteUrl"
-                    type="url"
-                    value={form.siteUrl}
-                    onChange={handleChange}
-                    placeholder="https://example.com"
-                    autoComplete="url"
-                    required
-                  />
-                </label>
-                <label>
-                  Login ID
-                  <input
-                    name="loginId"
-                    value={form.loginId}
-                    onChange={handleChange}
-                    placeholder="Optional"
-                    autoComplete="username"
-                  />
-                </label>
-                <label>
-                  Password
-                  <input
-                    name="password"
-                    type="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    placeholder="Optional"
-                    autoComplete={
-                      editingId ? "current-password" : "new-password"
-                    }
-                  />
-                </label>
-              </div>
-              <button
-                className="primary-button bookmark-submit"
-                type="submit"
-                disabled={isSubmitting}
-              >
-                <span>
-                  {isSubmitting
-                    ? "Saving..."
-                    : editingId
-                      ? "Update bookmark"
-                      : "Save bookmark"}
-                </span>
-                <span>↗</span>
-              </button>
-            </form>
-          </div>
-        )}
-        <div className="section-rule">
-          <span>Saved bookmarks</span>
-          <span>{filteredBookmarks.length} results</span>
-        </div>
-        <div className="table-shell">
-          <table className="bookmark-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Site name</th>
-                <th>Site URL</th>
-                <th>Login ID</th>
-                <th>Password</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleBookmarks.length ? (
-                visibleBookmarks.map((bookmark, index) => (
-                  <tr key={bookmark._id}>
-                    <td className="product-number">
-                      {String((page - 1) * pageSize + index + 1).padStart(
-                        2,
-                        "0",
-                      )}
-                    </td>
-                    <td>
-                      <strong>{bookmark.siteName}</strong>
-                    </td>
-                    <td>
-                      <a
-                        href={bookmark.siteUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {bookmark.siteUrl}
-                      </a>
-                    </td>
-                    <td>{bookmark.loginId || "-"}</td>
-                    <td>
-                      {bookmark.password
-                        ? visiblePasswords[bookmark._id]
-                          ? bookmark.password
-                          : "••••••••"
-                        : "-"}
-                    </td>
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          className="card-action"
-                          type="button"
-                          onClick={() =>
-                            setVisiblePasswords((current) => ({
-                              ...current,
-                              [bookmark._id]: !current[bookmark._id],
-                            }))
-                          }
+              </form>
+            </div>
+          )}
+          <div className="table-shell">
+            <table className="bookmark-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Site name</th>
+                  <th>Site URL</th>
+                  <th>Login ID</th>
+                  <th>Password</th>
+                  <th>Visits</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleBookmarks.length ? (
+                  visibleBookmarks.map((bookmark, index) => (
+                    <tr key={bookmark._id}>
+                      <td className="product-number">
+                        {String((page - 1) * pageSize + index + 1).padStart(
+                          2,
+                          "0",
+                        )}
+                      </td>
+                      <td>
+                        <strong>{bookmark.siteName}</strong>
+                      </td>
+                      <td>
+                        <a
+                          href={bookmark.siteUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => handleBookmarkClick(bookmark)}
                         >
-                          {visiblePasswords[bookmark._id] ? "Hide" : "Show"}
-                        </button>
-                        <button
-                          className="card-action"
-                          type="button"
-                          onClick={() => editBookmark(bookmark)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="card-action danger"
-                          type="button"
-                          onClick={() => removeBookmark(bookmark._id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                          {bookmark.siteUrl}
+                        </a>
+                      </td>
+                      <td>{bookmark.loginId || "-"}</td>
+                      <td>
+                        {bookmark.password
+                          ? visiblePasswords[bookmark._id]
+                            ? bookmark.password
+                            : "••••••••"
+                          : "-"}
+                      </td>
+                      <td>
+                        <span className="click-count">
+                          {bookmark.clickCount || 0}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            className="card-action"
+                            type="button"
+                            onClick={() =>
+                              setVisiblePasswords((current) => ({
+                                ...current,
+                                [bookmark._id]: !current[bookmark._id],
+                              }))
+                            }
+                          >
+                            {visiblePasswords[bookmark._id] ? "Hide" : "Show"}
+                          </button>
+                          <button
+                            className="card-action"
+                            type="button"
+                            onClick={() => editBookmark(bookmark)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="card-action danger"
+                            type="button"
+                            onClick={() => removeBookmark(bookmark._id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="table-empty" colSpan="7">
+                      {search
+                        ? "No site names match your search."
+                        : "Your vault is ready. Add your first bookmark."}
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="table-empty" colSpan="6">
-                    {search
-                      ? "No site names match your search."
-                      : "Your vault is ready. Add your first bookmark."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="pagination">
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <div>
-            <button
-              className="page-button"
-              type="button"
-              disabled={page === 1}
-              onClick={() => setPage((current) => current - 1)}
-            >
-              Previous
-            </button>
-            <button
-              className="page-button"
-              type="button"
-              disabled={page === totalPages}
-              onClick={() => setPage((current) => current + 1)}
-            >
-              Next
-            </button>
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+          <div className="pagination">
+            <span>
+              Page {page} of {totalPages}
+            </span>
+            <div>
+              <button
+                className="page-button"
+                type="button"
+                disabled={page === 1}
+                onClick={() => setPage((current) => current - 1)}
+              >
+                Previous
+              </button>
+              <button
+                className="page-button"
+                type="button"
+                disabled={page === totalPages}
+                onClick={() => setPage((current) => current + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
       <ToastContainer />
     </main>
   );
