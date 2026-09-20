@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { handleError, handleSuccess } from "../utils";
 
-function Login() {
+function Login({ theme, toggleTheme }) {
   const [loginInfo, setLoginInfo] = useState({
     email: "",
     password: "",
@@ -56,8 +56,20 @@ function Login() {
   };
 
   return (
-    <div className="container">
-      <h1>Login</h1>
+    <main className="auth-page">
+      <div className="auth-brand">bookmark<span>r</span></div>
+      <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}>
+        {theme === "light" ? "☾" : "☀"}
+      </button>
+      <section className="auth-layout">
+        <div className="auth-intro">
+          <p className="eyebrow">Your links, beautifully organized</p>
+          <h1>Keep the web worth remembering.</h1>
+          <p className="intro-copy">Save the pages that matter, find them in a heartbeat, and keep your digital world close.</p>
+          <div className="stat-row"><span><strong>01</strong> simple space</span><span><strong>∞</strong> useful links</span></div>
+        </div>
+        <div className="auth-card">
+          <div className="card-heading"><p className="eyebrow">Welcome back</p><h2>Sign in to bookmarkr</h2><p>Pick up right where you left off.</p></div>
       <form onSubmit={handleLogin}>
         <div>
           <label htmlFor="email">Email</label>
@@ -79,13 +91,13 @@ function Login() {
             value={loginInfo.password}
           />
         </div>
-        <button type="submit">Login</button>
-        <span>
-          Does't have an account ?<Link to="/signup">Signup</Link>
-        </span>
+        <button className="primary-button" type="submit">Continue <span>→</span></button>
+        <p className="form-footer">New to bookmarkr? <Link to="/signup">Create an account</Link></p>
       </form>
+        </div>
+      </section>
       <ToastContainer />
-    </div>
+    </main>
   );
 }
 

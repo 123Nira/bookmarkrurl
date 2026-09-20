@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { handleError, handleSuccess } from "../utils";
 
-function Signup() {
+function Signup({ theme, toggleTheme }) {
   const [signupInfo, setSignupInfo] = useState({
     name: "",
     email: "",
@@ -53,8 +53,20 @@ function Signup() {
     }
   };
   return (
-    <div className="container">
-      <h1>Signup</h1>
+    <main className="auth-page">
+      <div className="auth-brand">bookmark<span>r</span></div>
+      <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}>
+        {theme === "light" ? "☾" : "☀"}
+      </button>
+      <section className="auth-layout signup-layout">
+        <div className="auth-intro">
+          <p className="eyebrow">A calmer way to browse</p>
+          <h1>Make room for the good stuff.</h1>
+          <p className="intro-copy">A private, focused home for ideas, tools, and little discoveries you want to return to.</p>
+          <div className="quote-mark">“</div>
+        </div>
+        <div className="auth-card">
+          <div className="card-heading"><p className="eyebrow">Start your collection</p><h2>Create your account</h2><p>It only takes a minute to get organized.</p></div>
       <form onSubmit={handleSignup}>
         <div>
           <label htmlFor="name">Name</label>
@@ -87,13 +99,13 @@ function Signup() {
             value={signupInfo.password}
           />
         </div>
-        <button type="submit">Signup</button>
-        <span>
-          Already have an account ?<Link to="/login">Login</Link>
-        </span>
+        <button className="primary-button" type="submit">Create account <span>→</span></button>
+        <p className="form-footer">Already have an account? <Link to="/login">Sign in</Link></p>
       </form>
+        </div>
+      </section>
       <ToastContainer />
-    </div>
+    </main>
   );
 }
 
