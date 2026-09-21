@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { handleError, handleSuccess } from "../utils";
+import { Eye, EyeOff } from "lucide-react";
 
 function ResetPassword({ theme, toggleTheme }) {
   const { token } = useParams();
@@ -75,7 +76,7 @@ function ResetPassword({ theme, toggleTheme }) {
                   onClick={() => setShowPassword((current) => !current)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? "◉" : "◌"}
+                  {showPassword ? <Eye size={19} /> : <EyeOff size={19} />}
                 </button>
               </span>
             </div>
@@ -98,7 +99,11 @@ function ResetPassword({ theme, toggleTheme }) {
                     showConfirmPassword ? "Hide password" : "Show password"
                   }
                 >
-                  {showConfirmPassword ? "◉" : "◌"}
+                  {showConfirmPassword ? (
+                    <Eye size={19} />
+                  ) : (
+                    <EyeOff size={19} />
+                  )}
                 </button>
               </span>
             </div>

@@ -2,7 +2,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { handleError, handleSuccess } from "../utils";
 import { ToastContainer } from "react-toastify";
-import { LogOut, Trash2, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  Eye,
+  EyeOff,
+  LogOut,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 
 const emptyForm = { siteName: "", siteUrl: "", loginId: "", password: "" };
 const normalizeUrl = (url) => url.toLowerCase().replace(/\/+$/, "");
@@ -107,14 +115,28 @@ function Home({ theme, toggleTheme }) {
     event.preventDefault();
     const siteName = form.siteName.trim();
     const siteUrl = form.siteUrl.trim();
+    const wasEditing = Boolean(editingId);
 
-    if (!siteName || !siteUrl) {
+    if (siteName.length > 50) {
+      handleError("Site name cannot exceed 50 characters");
+      return;
+    }
+    if (form.loginId.length > 40) {
+      handleError("Login ID cannot exceed 40 characters");
+      return;
+    }
+    if (form.password.length > 20) {
+      handleError("Password cannot exceed 20 characters");
+      return;
+    }
+
+    if (!wasEditing && (!siteName || !siteUrl)) {
       handleError("Site name and site URL are required");
       return;
     }
 
     const duplicate = bookmarks.find((bookmark) => {
-      if (bookmark._id === editingId) return false;
+      if (!siteName || !siteUrl || bookmark._id === editingId) return false;
       return (
         bookmark.siteName.trim().toLowerCase() === siteName.toLowerCase() ||
         normalizeUrl(bookmark.siteUrl.trim()) === normalizeUrl(siteUrl)
@@ -132,7 +154,6 @@ function Home({ theme, toggleTheme }) {
 
     setIsSubmitting(true);
     try {
-      const wasEditing = Boolean(editingId);
       await request(wasEditing ? `/bookmarks/${editingId}` : "/bookmarks", {
         method: wasEditing ? "PUT" : "POST",
         body: JSON.stringify({ ...form, siteName, siteUrl }),
@@ -248,15 +269,6 @@ function Home({ theme, toggleTheme }) {
             >
               {theme === "light" ? "☾" : "☀"}
             </button>
-            <button
-              className="logout-button logout-control"
-              onClick={handleLogout}
-            >
-              <span className="logout-icon" aria-hidden="true">
-                <LogOut size={20} strokeWidth={2.5} />
-              </span>
-              <span className="logout-label">Logout</span>
-            </button>
           </div>
         </header>
         <section className="dashboard-content" id="bookmarks">
@@ -356,6 +368,7 @@ function Home({ theme, toggleTheme }) {
                       value={form.siteName}
                       onChange={handleChange}
                       placeholder="e.g. GitHub"
+                      maxLength={50}
                       autoComplete="organization"
                       required
                     />
@@ -379,6 +392,7 @@ function Home({ theme, toggleTheme }) {
                       value={form.loginId}
                       onChange={handleChange}
                       placeholder="Optional"
+                      maxLength={40}
                       autoComplete="username"
                     />
                   </label>
@@ -391,6 +405,7 @@ function Home({ theme, toggleTheme }) {
                         value={form.password}
                         onChange={handleChange}
                         placeholder="Optional"
+                        maxLength={20}
                         autoComplete={
                           editingId ? "current-password" : "new-password"
                         }
@@ -410,13 +425,17 @@ function Home({ theme, toggleTheme }) {
                             : "Show password"
                         }
                       >
-                        {visiblePasswords.form ? "◉" : "◌"}
+                        {visiblePasswords.form ? (
+                          <Eye size={19} />
+                        ) : (
+                          <EyeOff size={19} />
+                        )}
                       </button>
                     </span>
                   </label>
                 </div>
                 <button
-                  className="primary-button bookmark-submit"
+                  className="primary-button"
                   type="submit"
                   disabled={isSubmitting}
                 >
@@ -427,7 +446,6 @@ function Home({ theme, toggleTheme }) {
                         ? "Update bookmark"
                         : "Save bookmark"}
                   </span>
-                  <span>↗</span>
                 </button>
               </form>
             </div>
@@ -499,7 +517,15 @@ function Home({ theme, toggleTheme }) {
                   visibleBookmarks.map((bookmark, index) => (
                     <tr key={bookmark._id}>
                       <td>
-                        <strong>{bookmark.siteName}</strong>
+                        <strong
+                          title={
+                            bookmark.siteName.length > 20
+                              ? bookmark.siteName
+                              : undefined
+                          }
+                        >
+                          {bookmark.siteName}
+                        </strong>
                       </td>
                       <td>
                         <a
@@ -507,6 +533,11 @@ function Home({ theme, toggleTheme }) {
                           target="_blank"
                           rel="noreferrer"
                           onClick={() => handleBookmarkClick(bookmark)}
+                          title={
+                            bookmark.siteUrl.length > 49
+                              ? bookmark.siteUrl
+                              : undefined
+                          }
                         >
                           {bookmark.siteUrl}
                         </a>
@@ -536,13 +567,19 @@ function Home({ theme, toggleTheme }) {
                               }))
                             }
                           >
-                            {visiblePasswords[bookmark._id] ? "Hide" : "Show"}
+                            {visiblePasswords[bookmark._id] ? (
+                              <EyeOff size={16} />
+                            ) : (
+                              <Eye size={16} />
+                            )}
+                            View
                           </button>
                           <button
                             className="card-action"
                             type="button"
                             onClick={() => editBookmark(bookmark)}
                           >
+                            <Pencil size={15} />
                             Edit
                           </button>
                           <button
@@ -550,6 +587,7 @@ function Home({ theme, toggleTheme }) {
                             type="button"
                             onClick={() => setBookmarkToDelete(bookmark)}
                           >
+                            <Trash2 size={15} />
                             Delete
                           </button>
                         </div>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { handleError, handleSuccess } from "../utils";
+import { Eye, EyeOff } from "lucide-react";
 
 function Signup({ theme, toggleTheme }) {
   const [signupInfo, setSignupInfo] = useState({
@@ -14,7 +15,6 @@ function Signup({ theme, toggleTheme }) {
   const navigate = useNavigate();
   const handleChange = (e) => {
     const { name, value } = e.target;
-    console.log(name, value);
     const copySignupInfo = { ...signupInfo };
     copySignupInfo[name] = value;
     setSignupInfo(copySignupInfo);
@@ -48,7 +48,6 @@ function Signup({ theme, toggleTheme }) {
       } else if (!success) {
         handleError(message);
       }
-      console.log(result);
     } catch (err) {
       handleError(err);
     }
@@ -120,7 +119,7 @@ function Signup({ theme, toggleTheme }) {
                   onClick={() => setShowPassword((current) => !current)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? "◉" : "◌"}
+                  {showPassword ? <Eye size={19} /> : <EyeOff size={19} />}
                 </button>
               </span>
             </div>

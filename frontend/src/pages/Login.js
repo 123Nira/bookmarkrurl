@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { handleError, handleSuccess } from "../utils";
-import { LogIn } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 
 function Login({ theme, toggleTheme }) {
   const [loginInfo, setLoginInfo] = useState({
@@ -15,7 +15,6 @@ function Login({ theme, toggleTheme }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    console.log(name, value);
     const copyLoginInfo = { ...loginInfo };
     copyLoginInfo[name] = value;
     setLoginInfo(copyLoginInfo);
@@ -51,7 +50,6 @@ function Login({ theme, toggleTheme }) {
       } else if (!success) {
         handleError(message);
       }
-      console.log(result);
     } catch (err) {
       handleError(err);
     }
@@ -120,10 +118,7 @@ function Login({ theme, toggleTheme }) {
                   onClick={() => setShowPassword((current) => !current)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  <span
-                    className={`eye-icon ${showPassword ? "is-visible" : ""}`}
-                    aria-hidden="true"
-                  />
+                  {showPassword ? <Eye size={19} /> : <EyeOff size={19} />}
                 </button>
               </span>
             </div>
@@ -131,7 +126,12 @@ function Login({ theme, toggleTheme }) {
               <Link to="/forgot-password">Forgot your password?</Link>
             </p>
             <button className="primary-button login-button" type="submit">
-              <LogIn className="login-icon" size={24} strokeWidth={2.5} aria-hidden="true" />
+              <LogIn
+                className="login-icon"
+                size={24}
+                strokeWidth={2.5}
+                aria-hidden="true"
+              />
               <span className="login-label">Login</span>
             </button>
             <p className="form-footer">

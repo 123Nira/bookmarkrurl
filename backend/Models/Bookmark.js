@@ -24,6 +24,10 @@ const BookmarkSchema = new mongoose.Schema(
     password: {
       type: String,
     },
+    isDefault: {
+      type: Boolean,
+      default: false,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "users",
