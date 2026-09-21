@@ -15,6 +15,12 @@ const UserSchema = new Schema({
     type: String,
     required: true,
   },
+  resetPasswordTokenHash: {
+    type: String,
+  },
+  resetPasswordExpiresAt: {
+    type: Date,
+  },
 });
 
 const UserModel = mongoose.model("users", UserSchema);

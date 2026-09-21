@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { handleError, handleSuccess } from "../utils";
 import { ToastContainer } from "react-toastify";
+import { LogOut, Trash2, X } from "lucide-react";
 
 const emptyForm = { siteName: "", siteUrl: "", loginId: "", password: "" };
-const pageSize = 10;
 const normalizeUrl = (url) => url.toLowerCase().replace(/\/+$/, "");
 
 const request = async (path, options = {}) => {
@@ -33,10 +33,12 @@ function Home({ theme, toggleTheme }) {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [bookmarkToDelete, setBookmarkToDelete] = useState(null);
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const navigate = useNavigate();
 
   const handleRequestError = (err) => {
@@ -156,13 +158,16 @@ function Home({ theme, toggleTheme }) {
     setIsFormOpen(true);
   };
 
-  const removeBookmark = async (id) => {
-    if (!window.confirm("Delete this bookmark?")) return;
+  const removeBookmark = async () => {
+    if (!bookmarkToDelete) return;
+
+    const id = bookmarkToDelete._id;
     try {
       await request(`/bookmarks/${id}`, { method: "DELETE" });
       setBookmarks((current) =>
         current.filter((bookmark) => bookmark._id !== id),
       );
+      setBookmarkToDelete(null);
       handleSuccess("Bookmark deleted");
     } catch (err) {
       handleRequestError(err);
@@ -206,9 +211,19 @@ function Home({ theme, toggleTheme }) {
             <span>{theme === "light" ? "☾" : "☀"}</span>{" "}
             {theme === "light" ? "Dark mode" : "Light mode"}
           </button>
+          <Link className="nav-item" to="/contact">
+            <span>✉</span> Contact me
+          </Link>
         </nav>
-        <button className="sidebar-logout" type="button" onClick={handleLogout}>
-          Log out <span>↗</span>
+        <button
+          className="sidebar-logout logout-control"
+          type="button"
+          onClick={handleLogout}
+        >
+          <span className="logout-icon" aria-hidden="true">
+            <LogOut size={20} strokeWidth={2.5} />
+          </span>
+          <span className="logout-label">Logout</span>
         </button>
       </aside>
       <div className="dashboard-main">
@@ -233,23 +248,57 @@ function Home({ theme, toggleTheme }) {
             >
               {theme === "light" ? "☾" : "☀"}
             </button>
-            <button className="logout-button" onClick={handleLogout}>
-              Log out <span>↗</span>
+            <button
+              className="logout-button logout-control"
+              onClick={handleLogout}
+            >
+              <span className="logout-icon" aria-hidden="true">
+                <LogOut size={20} strokeWidth={2.5} />
+              </span>
+              <span className="logout-label">Logout</span>
             </button>
           </div>
         </header>
         <section className="dashboard-content" id="bookmarks">
           <div className="toolbar">
-            <label className="search-box">
-              <span>Search</span>
-              <input
-                value={search}
+            <label className="page-size-control">
+              <select
+                value={pageSize}
                 onChange={(event) => {
-                  setSearch(event.target.value);
+                  setPageSize(Number(event.target.value));
                   setPage(1);
                 }}
-                placeholder="Search by site name"
-              />
+              >
+                <option value="10">10 rows</option>
+                <option value="20">20 rows</option>
+                <option value="50">50 rows</option>
+                <option value="100">100 rows</option>
+              </select>
+            </label>
+            <label className="search-box">
+              <span className="search-input-wrap">
+                <input
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Search by site name"
+                />
+                {search && (
+                  <button
+                    className="search-clear"
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      setPage(1);
+                    }}
+                    aria-label="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
             </label>
             <button
               className="primary-button new-entry-button"
@@ -260,7 +309,7 @@ function Home({ theme, toggleTheme }) {
                 setIsFormOpen(true);
               }}
             >
-              <span>+ New entry</span>
+              <span>Add URL</span>
             </button>
             <span>{filteredBookmarks.length} Total Sites</span>
           </div>
@@ -335,16 +384,35 @@ function Home({ theme, toggleTheme }) {
                   </label>
                   <label>
                     Password
-                    <input
-                      name="password"
-                      type="password"
-                      value={form.password}
-                      onChange={handleChange}
-                      placeholder="Optional"
-                      autoComplete={
-                        editingId ? "current-password" : "new-password"
-                      }
-                    />
+                    <span className="password-field">
+                      <input
+                        name="password"
+                        type={visiblePasswords.form ? "text" : "password"}
+                        value={form.password}
+                        onChange={handleChange}
+                        placeholder="Optional"
+                        autoComplete={
+                          editingId ? "current-password" : "new-password"
+                        }
+                      />
+                      <button
+                        className="password-toggle"
+                        type="button"
+                        onClick={() =>
+                          setVisiblePasswords((current) => ({
+                            ...current,
+                            form: !current.form,
+                          }))
+                        }
+                        aria-label={
+                          visiblePasswords.form
+                            ? "Hide password"
+                            : "Show password"
+                        }
+                      >
+                        {visiblePasswords.form ? "◉" : "◌"}
+                      </button>
+                    </span>
                   </label>
                 </div>
                 <button
@@ -364,11 +432,60 @@ function Home({ theme, toggleTheme }) {
               </form>
             </div>
           )}
+          {bookmarkToDelete && (
+            <div
+              className="confirmation-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-bookmark-title"
+            >
+              <button
+                className="modal-backdrop"
+                type="button"
+                aria-label="Cancel delete"
+                onClick={() => setBookmarkToDelete(null)}
+              />
+              <div className="confirmation-card">
+                <button
+                  className="confirmation-close"
+                  type="button"
+                  onClick={() => setBookmarkToDelete(null)}
+                  aria-label="Close delete confirmation"
+                >
+                  <X size={20} strokeWidth={2.5} />
+                </button>
+                <h3 id="delete-bookmark-title">
+                  Are you sure you want to delete this{" "}
+                  {bookmarkToDelete.siteName}?
+                </h3>
+                <p>
+                  This will permanently remove{" "}
+                  <strong>{bookmarkToDelete.siteName}</strong> from your vault.
+                </p>
+                <div className="confirmation-actions">
+                  <button
+                    className="cancel-button"
+                    type="button"
+                    onClick={() => setBookmarkToDelete(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="delete-button"
+                    type="button"
+                    onClick={removeBookmark}
+                  >
+                    <Trash2 size={16} strokeWidth={2.5} />
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="table-shell">
             <table className="bookmark-table">
               <thead>
                 <tr>
-                  <th>#</th>
                   <th>Site name</th>
                   <th>Site URL</th>
                   <th>Login ID</th>
@@ -381,12 +498,6 @@ function Home({ theme, toggleTheme }) {
                 {visibleBookmarks.length ? (
                   visibleBookmarks.map((bookmark, index) => (
                     <tr key={bookmark._id}>
-                      <td className="product-number">
-                        {String((page - 1) * pageSize + index + 1).padStart(
-                          2,
-                          "0",
-                        )}
-                      </td>
                       <td>
                         <strong>{bookmark.siteName}</strong>
                       </td>
@@ -437,7 +548,7 @@ function Home({ theme, toggleTheme }) {
                           <button
                             className="card-action danger"
                             type="button"
-                            onClick={() => removeBookmark(bookmark._id)}
+                            onClick={() => setBookmarkToDelete(bookmark)}
                           >
                             Delete
                           </button>
@@ -467,16 +578,18 @@ function Home({ theme, toggleTheme }) {
                 type="button"
                 disabled={page === 1}
                 onClick={() => setPage((current) => current - 1)}
+                aria-label="Previous page"
               >
-                Previous
+                &#8592;
               </button>
               <button
                 className="page-button"
                 type="button"
                 disabled={page === totalPages}
                 onClick={() => setPage((current) => current + 1)}
+                aria-label="Next page"
               >
-                Next
+                &#8594;
               </button>
             </div>
           </div>

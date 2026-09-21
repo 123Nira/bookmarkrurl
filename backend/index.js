@@ -4,6 +4,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const AuthRouter = require("./Routes/AuthRouter");
 const BookmarkRouter = require("./Routes/BookmarkRouter");
+const ContactRouter = require("./Routes/ContactRouter");
 
 require("dotenv").config();
 require("./Models/db");
@@ -18,6 +19,7 @@ app.use(cors());
 app.use("/auth", AuthRouter);
 app.use("/bookmarks", BookmarkRouter);
 app.use("/products", BookmarkRouter);
+app.use("/contact", ContactRouter);
 
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {
